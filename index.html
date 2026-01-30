@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>OBS Overlay - Firebase Realtime</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #ffcc00;
+            --bg-grad: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(50,50,50,0.9) 100%);
+            --text-color: #ffffff;
+        }
+
+        body { margin: 0; padding: 0; font-family: sans-serif; overflow: hidden; background: transparent; }
+        #overlay-container { position: relative; width: 1920px; height: 1080px; }
+        
+        #menu-btn {
+            position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px;
+            background: var(--primary-color); border-radius: 50%; border: 4px solid #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #333; cursor: pointer; z-index: 100;
+        }
+
+        #menu-panel {
+            position: absolute; bottom: 130px; right: 40px; width: 400px;
+            background: var(--bg-grad); border: 2px solid var(--primary-color);
+            border-radius: 15px; padding: 20px; color: var(--text-color);
+            transform: translateX(450px); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #menu-panel.is-open { transform: translateX(0); }
+        .label { color: var(--primary-color); font-weight: bold; border-bottom: 1px solid; margin-bottom: 5px; display: block; font-size: 14px; }
+        .content { font-size: 18px; white-space: pre-wrap; margin-bottom: 15px; }
+
+        /* --- エディター用 --- */
+        #editor-container { display: none; background: #1a1a1a; color: #fff; padding: 30px; min-height: 100vh; box-sizing: border-box; }
+        .edit-card { background: #2a2a2a; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--primary-color); }
+        .save-btn { background: var(--primary-color); color: #000; border: none; padding: 15px 40px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 20px; }
+        input, textarea { width: 100%; padding: 10px; margin-top: 5px; background: #000; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay-container">
+        <div id="menu-btn" onclick="toggleMenu()">MENU</div>
+        <div id="menu-panel">
+            <div id="items-root">読み込み中...</div>
+        </div>
+    </div>
+
+    <div id="editor-container">
+        <h1>Overlay Cloud Editor</h1>
+        <div class="edit-card">
+            <label>テーマカラー</label>
+            <input type="color" id="in-color" style="height: 50px;">
+        </div>
+        <div id="input-fields"></div>
+        <button class="save-btn" onclick="pushToFirebase()">クラウドに保存・反映</button>
+        <p id="status" style="margin-top: 10px; color: #00ff00;"></p>
+    </div>
+
+    <script>
+        // --- ★ここにFirebaseのコンソールからコピーした値を貼り付けてください ---
+        const firebaseConfig = {
+    apiKey: "AIzaSyCY-AQvOPOvAtQRNew0yU8_vs4JBLT-0dU",
+    authDomain: "vtuberanimationoverlay.firebaseapp.com",
+    databaseURL: "https://vtuberanimationoverlay-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "vtuberanimationoverlay",
+    storageBucket: "vtuberanimationoverlay.firebasestorage.app",
+    messagingSenderId: "562286832690",
+    appId: "1:562286832690:web:16524d7c9f10d71d6ca02b",
+    measurementId: "G-Z04Q2LRJBF"
+  };
+        // -------------------------------------------------------------------
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const isEditMode = window.location.search.includes('edit');
+
+        // 表示の反映
+        function applyData(data) {
+            if (!data) return;
+            document.documentElement.style.setProperty('--primary-color', data.themeColor);
+            const root = document.getElementById('items-root');
+            root.innerHTML = data.sections.map(s => `
+                <div class="menu-item">
+                    <span class="label">${s.title}</span>
+                    <div class="content">${s.content}</div>
+                </div>
+            `).join('');
+        }
+
+        // Firebaseへ保存
+        function pushToFirebase() {
+            const data = {
+                themeColor: document.getElementById('in-color').value,
+                sections: []
+            };
+            for(let i=0; i<3; i++) {
+                data.sections.push({
+                    title: document.getElementById(`in-t-${i}`).value,
+                    content: document.getElementById(`in-c-${i}`).value
+                });
+            }
+            db.ref('overlay_data').set(data).then(() => {
+                document.getElementById('status').innerText = "保存完了！OBSに反映されました。";
+                setTimeout(() => document.getElementById('status').innerText = "", 3000);
+            });
+        }
+
+        function toggleMenu() {
+            document.getElementById('menu-panel').classList.toggle('is-open');
+        }
+
+        // 初期化
+        if (isEditMode) {
+            document.getElementById('overlay-container').style.display = 'none';
+            document.getElementById('editor-container').style.display = 'block';
+            document.body.style.overflow = "auto";
+
+            // 既存データを取得して入力欄を生成
+            db.ref('overlay_data').once('value', (snapshot) => {
+                const data = snapshot.val() || { themeColor: "#ffcc00", sections: [{title:"",content:""},{title:"",content:""},{title:"",content:""}] };
+                document.getElementById('in-color').value = data.themeColor;
+                const fields = document.getElementById('input-fields');
+                data.sections.forEach((s, i) => {
+                    fields.innerHTML += `
+                        <div class="edit-card">
+                            <label>項目${i+1} タイトル</label>
+                            <input type="text" id="in-t-${i}" value="${s.title}">
+                            <label style="display:block; margin-top:10px;">内容</label>
+                            <textarea id="in-c-${i}" rows="3">${s.content}</textarea>
+                        </div>`;
+                });
+            });
+        } else {
+            // OBS側：Firebaseの更新を監視してリアルタイム反映
+            db.ref('overlay_data').on('value', (snapshot) => {
+                applyData(snapshot.val());
+            });
+        }
+    </script>
+</body>
+</html>
