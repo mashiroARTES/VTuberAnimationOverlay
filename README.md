@@ -1,49 +1,50 @@
 📺 VTuberAnimationOverlay for OBS (Firebase Cloud Sync 版)
-このプロジェクトは、OBS用の動的なオーバーレイをクラウド（Firebase）経由で操作できるツールです。 エディター画面で保存ボタンを押すだけで、配信画面上のオーバーレイがリロードなしで即座に更新されます。
+このプロジェクトは、Firebase Realtime Databaseを利用して、OBS上のオーバーレイをブラウザからリアルタイムに書き換えることができるツールです。 URLに固有の id を含めることで、複数の配信者がそれぞれ自分専用の設定を保持・運用できます。
 
-✨ 主な機能
-リアルタイム同期: Firebase Realtime Database を使用し、秒速で内容を反映。
-
-トピック編集: 3つの項目のタイトルと内容を自由に変更可能。
-
-カラーカスタマイズ: 配信の雰囲気に合わせてメインカラーを一括変更。
-
-モバイル対応: GitHub Pages にホストすれば、スマホからセトリ更新が可能。
+🔗 クイックリンク
+ベースURL: https://mashiroartes.github.io/VTuberAnimationOverlay/index.html
 
 🚀 使い方
-1. 配信画面（OBS）への表示
-https://mashiroARTES.github.io/VTuberAnimationOverlay/index.html をコピーします。
+1. 自分専用のIDを決める
+他のユーザーと重複しない、自分専用のID（英数字）を決めてください。
 
-OBSのソースに「ブラウザソース」を追加し、上記のURLを貼り付けます。
+例：my_stream_01 など
+
+2. 配信画面（OBS）への追加
+OBSのソース一覧から「ブラウザ」ソースを新規作成します。
+
+URL欄に以下のように自分のIDを付け加えたURLを入力します。 https://mashiroartes.github.io/VTuberAnimationOverlay/index.html?id=【自分のID】
 
 幅を 1920、高さを 1080 に設定してください。
 
-2. 設定の変更（エディター）
-公開したURLの末尾に ?edit を追加してブラウザで開きます。
+3. 内容の編集（エディター画面）
+通常のブラウザ（Chrome等）で、URLの末尾に &edit を付けた状態で開きます。 https://mashiroartes.github.io/VTuberAnimationOverlay/index.html?id=【自分のID】&edit
 
-例: https://.../index.html?edit
+画面上のエディターで「テーマカラー」「各項目のタイトル」「内容」を入力します。
 
-内容やカラーを編集し、「クラウドに保存・反映」ボタンを押すと即座にOBS側に反映されます。
+**「クラウドに保存・即時反映」**ボタンを押すと、OBS側の画面がリロードなしで瞬時に切り替わります。
 
 🛠 セットアップ（開発者向け）
-Firebaseの準備
+自分でFirebaseを管理・ホストする場合は、以下の手順を行ってください。
+
+Firebaseの設定:
 
 Firebase Console でプロジェクトを作成。
 
-Realtime Database を作成（テストモード推奨）。
+Realtime Database を有効化。
 
-コードの書き換え
+index.html 内の firebaseConfig 変数を、自身のプロジェクト設定に書き換えてください。
 
-index.html 内の const firebaseConfig 部分を、自分のプロジェクト情報に書き換えてください。
+GitHub Pagesへのデプロイ:
 
-GitHub Pages で公開
+リポジトリの Settings > Pages から公開設定を行ってください。
 
-リポジトリの Settings > Pages から、main ブランチを公開ソースに設定。
+⚠️ セキュリティと注意点
+IDの秘匿: ?id=...&edit を含むURLは、あなたのオーバーレイを操作するための鍵となります。配信画面に映したり、他人に教えたりしないでください。
 
-⚠️ セキュリティに関する注意
-エディターURLの管理: ?edit 付きのURLは管理者用です。配信画面に映したり、SNSで共有したりしないでください。（誰でも内容を書き換えられてしまうため）
+推測されにくいID: id=test などの簡単な文字列は第三者に上書きされる可能性があるため、ランダムな英数字を組み合わせたIDの使用を推奨します。
 
-Firebaseルール: 本格的に運用する場合は、Firebaseの「ルール」で書き込み制限をかけるか、APIキーにHTTPリファラー制限（GitHub Pagesのドメインのみ許可）をかけることを推奨します。
+データ保持: Firebaseの無料枠内で動作しますが、長期間アクセスがない場合や設定によってはデータが削除される可能性があります。重要な設定はメモしておくことをお勧めします。
 
 📄 ライセンス
-MIT License - ご自由にカスタマイズして配信にご活用ください！
+MIT License ご自身の配信スタイルに合わせて自由にカスタマイズしてご活用ください。
