@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>OBS Cloud Overlay - Full Sync</title>
+    <title>OBS Cloud Overlay - Fixed Version</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
@@ -45,7 +45,7 @@
     <div id="overlay-container">
         <div id="menu-btn" onclick="toggleMenu()">MENU</div>
         <div id="menu-panel">
-            <div id="items-root"></div>
+            <div id="items-root">読み込み中...</div>
         </div>
     </div>
 
@@ -55,13 +55,14 @@
             <label>テーマカラー</label>
             <input type="color" id="in-color">
         </div>
-        <div id="input-fields"></div>
+        <div id="input-fields">
+            </div>
         <button class="save-btn" onclick="pushToFirebase()">クラウドに保存・反映</button>
-        <p id="status"></p>
+        <p id="status" style="color: #00ff00; font-weight: bold; margin-top: 10px;"></p>
     </div>
 
     <script>
-        // ★Firebaseの設定をここに貼り付けてください
+        // ★Firebaseの設定をここに貼り付け
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
             authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -72,17 +73,26 @@
             appId: "YOUR_APP_ID"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        // Firebase初期化の安全性向上
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.database();
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id') || 'default';
         const isEditMode = urlParams.has('edit');
         const dbRef = db.ref(`overlay_data/${userId}`);
 
-        // 画面への反映処理（重要：タイトルも反映）
+        // 表示の反映（すべての値を更新）
         function applyData(data) {
-            if (!data) return;
+            if (!data || !data.sections) {
+                document.getElementById('items-root').innerText = "初期データを作成中...";
+                return;
+            }
+            // 色の反映
             document.documentElement.style.setProperty('--primary-color', data.themeColor);
+            
+            // 項目の反映
             const root = document.getElementById('items-root');
             root.innerHTML = data.sections.map(s => `
                 <div class="menu-item">
@@ -92,21 +102,21 @@
             `).join('');
         }
 
-        // Firebaseへの保存処理
+        // Firebaseへ保存（タイトルの取得を確実化）
         function pushToFirebase() {
             const data = {
                 themeColor: document.getElementById('in-color').value,
-                sections: []
+                sections: [
+                    { title: document.getElementById('in-t-0').value, content: document.getElementById('in-c-0').value },
+                    { title: document.getElementById('in-t-1').value, content: document.getElementById('in-c-1').value },
+                    { title: document.getElementById('in-t-2').value, content: document.getElementById('in-c-2').value }
+                ]
             };
-            for(let i=0; i<3; i++) {
-                data.sections.push({
-                    title: document.getElementById(`in-t-${i}`).value,
-                    content: document.getElementById(`in-c-${i}`).value
-                });
-            }
             dbRef.set(data).then(() => {
-                document.getElementById('status').innerText = "✓ 保存しました";
-                setTimeout(() => document.getElementById('status').innerText = "", 2000);
+                document.getElementById('status').innerText = "✓ 保存完了！OBS側に反映されました。";
+                setTimeout(() => document.getElementById('status').innerText = "", 3000);
+            }).catch(err => {
+                alert("保存エラー: " + err.message);
             });
         }
 
@@ -114,24 +124,27 @@
             document.getElementById('menu-panel').classList.toggle('is-open');
         }
 
+        // 初期化処理
         if (isEditMode) {
             document.getElementById('overlay-container').style.display = 'none';
             document.getElementById('editor-container').style.display = 'block';
             document.body.style.overflow = "auto";
             document.getElementById('display-id').innerText = userId;
 
-            // 初期データ読み込み
-            dbRef.once('value', (snapshot) => {
+            // 既存データを取得して入力欄にセット
+            dbRef.on('value', (snapshot) => {
                 const data = snapshot.val() || {
                     themeColor: "#ffcc00",
                     sections: [
-                        {title: "NOTICE", content: "お知らせ内容"},
-                        {title: "SETLIST", content: "1. 曲名"},
-                        {title: "PROFILE", content: "自己紹介"}
+                        {title: "NOTICE", content: "配信中！"},
+                        {title: "SETLIST", content: "1. SongA"},
+                        {title: "PROFILE", content: "こんにちは！"}
                     ]
                 };
+                
                 document.getElementById('in-color').value = data.themeColor;
                 const fields = document.getElementById('input-fields');
+                fields.innerHTML = ""; // 重複防止
                 data.sections.forEach((s, i) => {
                     fields.innerHTML += `
                         <div class="edit-card">
@@ -141,9 +154,9 @@
                             <textarea id="in-c-${i}" rows="3">${s.content}</textarea>
                         </div>`;
                 });
-            });
+            }, { onlyOnce: true }); // エディター側は初回読み込みのみ同期
         } else {
-            // OBS側は常に最新を監視
+            // OBS側：常に監視
             dbRef.on('value', (snapshot) => {
                 applyData(snapshot.val());
             });
