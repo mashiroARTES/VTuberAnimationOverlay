@@ -2,33 +2,15 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>OBS Cloud Overlay - Fixed Version</title>
+    <title>OBS Cloud Overlay - Fixed Connection</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        :root {
-            --primary-color: #ffcc00;
-            --bg-grad: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(50,50,50,0.9) 100%);
-            --text-color: #ffffff;
-        }
-
+        :root { --primary-color: #ffcc00; --bg-grad: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(50,50,50,0.9) 100%); --text-color: #ffffff; }
         body { margin: 0; padding: 0; font-family: sans-serif; overflow: hidden; background: transparent; }
         #overlay-container { position: relative; width: 1920px; height: 1080px; }
-        
-        #menu-btn {
-            position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px;
-            background: var(--primary-color); border-radius: 50%; border: 4px solid #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; color: #333; cursor: pointer; z-index: 100;
-        }
-
-        #menu-panel {
-            position: absolute; bottom: 130px; right: 40px; width: 400px;
-            background: var(--bg-grad); border: 2px solid var(--primary-color);
-            border-radius: 15px; padding: 25px; color: var(--text-color);
-            transform: translateX(500px); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
+        #menu-btn { position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px; background: var(--primary-color); border-radius: 50%; border: 4px solid #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #333; cursor: pointer; z-index: 100; }
+        #menu-panel { position: absolute; bottom: 130px; right: 40px; width: 400px; background: var(--bg-grad); border: 2px solid var(--primary-color); border-radius: 15px; padding: 25px; color: var(--text-color); transform: translateX(500px); transition: transform 0.5s; }
         #menu-panel.is-open { transform: translateX(0); }
         .label { color: var(--primary-color); font-weight: bold; border-bottom: 1px solid; margin-bottom: 8px; display: block; font-size: 14px; }
         .content { font-size: 18px; white-space: pre-wrap; margin-bottom: 20px; }
@@ -36,130 +18,101 @@
         /* エディター用 */
         #editor-container { display: none; background: #121212; color: #fff; padding: 40px; min-height: 100vh; box-sizing: border-box; }
         .edit-card { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333; }
-        .save-btn { background: var(--primary-color); color: #000; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        .save-btn { background: var(--primary-color); color: #000; border: none; padding: 15px 50px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 18px; width: 100%; }
         input, textarea { width: 100%; padding: 12px; margin-top: 8px; background: #000; color: #fff; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; }
+        #log { font-family: monospace; font-size: 12px; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="overlay-container">
         <div id="menu-btn" onclick="toggleMenu()">MENU</div>
-        <div id="menu-panel">
-            <div id="items-root">読み込み中...</div>
-        </div>
+        <div id="menu-panel"><div id="items-root"></div></div>
     </div>
 
     <div id="editor-container">
-        <h1>Cloud Editor (ID: <span id="display-id"></span>)</h1>
-        <div class="edit-card">
-            <label>テーマカラー</label>
-            <input type="color" id="in-color">
-        </div>
-        <div id="input-fields">
-            </div>
+        <h2>Overlay Editor</h2>
+        <div class="edit-card"><label>テーマカラー</label><input type="color" id="in-color"></div>
+        <div id="input-fields"></div>
         <button class="save-btn" onclick="pushToFirebase()">クラウドに保存・反映</button>
-        <p id="status" style="color: #00ff00; font-weight: bold; margin-top: 10px;"></p>
+        <div id="log"></div>
     </div>
 
     <script>
-        // ★Firebaseの設定をここに貼り付け
+        // --- 修正された設定 ---
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-            projectId: "YOUR_PROJECT",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "YOUR_API_KEY", // ★必ず自分のものに
+            authDomain: "vtuberanimationoverlay.firebaseapp.com",
+            databaseURL: "https://vtuberanimationoverlay-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "vtuberanimationoverlay",
+            storageBucket: "vtuberanimationoverlay.appspot.com",
+            messagingSenderId: "YOUR_ID", // ★必ず自分のものに
+            appId: "YOUR_APP_ID" // ★必ず自分のものに
         };
 
-        // Firebase初期化の安全性向上
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        function setLog(msg) { document.getElementById('log').innerText = "Status: " + msg; }
+
+        // Firebase初期化
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            setLog("接続準備完了");
+        } catch(e) { setLog("初期化エラー: " + e.message); }
+
         const db = firebase.database();
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id') || 'default';
         const isEditMode = urlParams.has('edit');
         const dbRef = db.ref(`overlay_data/${userId}`);
 
-        // 表示の反映（すべての値を更新）
         function applyData(data) {
-            if (!data || !data.sections) {
-                document.getElementById('items-root').innerText = "初期データを作成中...";
-                return;
-            }
-            // 色の反映
-            document.documentElement.style.setProperty('--primary-color', data.themeColor);
-            
-            // 項目の反映
+            if (!data) return;
+            document.documentElement.style.setProperty('--primary-color', data.themeColor || "#ffcc00");
             const root = document.getElementById('items-root');
-            root.innerHTML = data.sections.map(s => `
-                <div class="menu-item">
-                    <span class="label">${s.title}</span>
-                    <div class="content">${s.content}</div>
-                </div>
-            `).join('');
+            if(root && data.sections) {
+                root.innerHTML = data.sections.map(s => `
+                    <div class="menu-item"><span class="label">${s.title}</span><div class="content">${s.content}</div></div>
+                `).join('');
+            }
         }
 
-        // Firebaseへ保存（タイトルの取得を確実化）
         function pushToFirebase() {
+            setLog("保存中...");
             const data = {
                 themeColor: document.getElementById('in-color').value,
-                sections: [
-                    { title: document.getElementById('in-t-0').value, content: document.getElementById('in-c-0').value },
-                    { title: document.getElementById('in-t-1').value, content: document.getElementById('in-c-1').value },
-                    { title: document.getElementById('in-t-2').value, content: document.getElementById('in-c-2').value }
-                ]
+                sections: [0, 1, 2].map(i => ({
+                    title: document.getElementById(`in-t-${i}`).value,
+                    content: document.getElementById(`in-c-${i}`).value
+                }))
             };
-            dbRef.set(data).then(() => {
-                document.getElementById('status').innerText = "✓ 保存完了！OBS側に反映されました。";
-                setTimeout(() => document.getElementById('status').innerText = "", 3000);
-            }).catch(err => {
-                alert("保存エラー: " + err.message);
-            });
+            dbRef.set(data)
+                .then(() => { setLog("保存成功！"); })
+                .catch(err => { setLog("保存失敗: " + err.message); });
         }
 
-        function toggleMenu() {
-            document.getElementById('menu-panel').classList.toggle('is-open');
-        }
+        function toggleMenu() { document.getElementById('menu-panel').classList.toggle('is-open'); }
 
-        // 初期化処理
         if (isEditMode) {
-            document.getElementById('overlay-container').style.display = 'none';
             document.getElementById('editor-container').style.display = 'block';
-            document.body.style.overflow = "auto";
-            document.getElementById('display-id').innerText = userId;
-
-            // 既存データを取得して入力欄にセット
-            dbRef.on('value', (snapshot) => {
+            document.getElementById('overlay-container').style.display = 'none';
+            dbRef.once('value', (snapshot) => {
                 const data = snapshot.val() || {
                     themeColor: "#ffcc00",
-                    sections: [
-                        {title: "NOTICE", content: "配信中！"},
-                        {title: "SETLIST", content: "1. SongA"},
-                        {title: "PROFILE", content: "こんにちは！"}
-                    ]
+                    sections: [{title:"NOTICE",content:"..."},{title:"SETLIST",content:"..."},{title:"PROFILE",content:"..."}]
                 };
-                
                 document.getElementById('in-color').value = data.themeColor;
                 const fields = document.getElementById('input-fields');
-                fields.innerHTML = ""; // 重複防止
+                fields.innerHTML = "";
                 data.sections.forEach((s, i) => {
-                    fields.innerHTML += `
-                        <div class="edit-card">
-                            <label>項目${i+1} タイトル</label>
-                            <input type="text" id="in-t-${i}" value="${s.title}">
-                            <label style="display:block; margin-top:10px;">内容</label>
-                            <textarea id="in-c-${i}" rows="3">${s.content}</textarea>
-                        </div>`;
+                    fields.innerHTML += `<div class="edit-card">
+                        <label>項目${i+1}</label>
+                        <input type="text" id="in-t-${i}" value="${s.title}">
+                        <textarea id="in-c-${i}" rows="2">${s.content}</textarea>
+                    </div>`;
                 });
-            }, { onlyOnce: true }); // エディター側は初回読み込みのみ同期
-        } else {
-            // OBS側：常に監視
-            dbRef.on('value', (snapshot) => {
-                applyData(snapshot.val());
+                setLog("データを同期しました");
             });
+        } else {
+            dbRef.on('value', (snapshot) => { applyData(snapshot.val()); });
         }
     </script>
 </body>
