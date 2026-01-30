@@ -1,4 +1,4 @@
-📺 OBS Social Game Overlay (Firebase Cloud Sync 版)
+📺 VTuberAnimationOverlay for OBS (Firebase Cloud Sync 版)
 このプロジェクトは、OBS用の動的なオーバーレイをクラウド（Firebase）経由で操作できるツールです。 エディター画面で保存ボタンを押すだけで、配信画面上のオーバーレイがリロードなしで即座に更新されます。
 
 ✨ 主な機能
@@ -12,7 +12,7 @@
 
 🚀 使い方
 1. 配信画面（OBS）への表示
-https://[ユーザー名].github.io/[リポジトリ名]/index.html をコピーします。
+https://mashiroARTES.github.io/VTuberAnimationOverlay/index.html をコピーします。
 
 OBSのソースに「ブラウザソース」を追加し、上記のURLを貼り付けます。
 
